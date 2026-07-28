@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lakshmi Fashions - Admin</title>
-    <!-- Netlify Identity Widget -->
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,7 +20,7 @@
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            max-width: 450px;
+            max-width: 500px;
             width: 90%;
             text-align: center;
         }
@@ -60,13 +59,18 @@
             margin-top: 16px;
             font-size: 14px;
         }
-        .success-box {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 16px;
+        .log {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
     </style>
 </head>
@@ -75,8 +79,9 @@
     <div class="container" id="app">
         <div id="loading">
             <div class="spinner"></div>
-            <div class="status">Loading Admin Panel...</div>
+            <div class="status" id="statusText">Loading Admin Panel...</div>
             <div class="sub-status" id="subStatus">Initializing...</div>
+            <div class="log" id="debugLog">⏳ Starting...</div>
         </div>
 
         <div id="login" class="hidden">
@@ -93,54 +98,158 @@
             <button class="btn" onclick="location.reload()">Refresh Page</button>
         </div>
 
-        <div id="success" class="hidden">
+        <div id="cms" class="hidden">
             <div style="font-size:48px;margin-bottom:12px;">✅</div>
-            <div class="status" style="color:#27ae60;">Connected!</div>
-            <div class="success-box">CMS is loading. Please wait...</div>
+            <div class="status" style="color:#27ae60;">CMS Loaded!</div>
+            <div class="sub-status">The admin panel should appear below.</div>
         </div>
     </div>
 
     <script>
+        // Debug logging
+        const debugLog = document.getElementById('debugLog');
+        const statusText = document.getElementById('statusText');
+        const subStatusEl = document.getElementById('subStatus');
+
+        function log(msg) {
+            console.log('[Admin]', msg);
+            if (debugLog) {
+                debugLog.textContent += '\n' + msg;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+        }
+
+        function updateStatus(msg, sub = '') {
+            statusText.textContent = msg;
+            if (sub) subStatusEl.textContent = sub;
+            log(msg + (sub ? ' - ' + sub : ''));
+        }
+
         const loadingEl = document.getElementById('loading');
         const loginEl = document.getElementById('login');
         const errorEl = document.getElementById('error');
-        const successEl = document.getElementById('success');
-        const subStatus = document.getElementById('subStatus');
+        const cmsEl = document.getElementById('cms');
         const errorMessage = document.getElementById('errorMessage');
         const loginBtn = document.getElementById('loginBtn');
 
-        function showLoading(msg = 'Loading...') {
+        function showLoading(msg = 'Loading...', sub = '') {
             loadingEl.classList.remove('hidden');
             loginEl.classList.add('hidden');
             errorEl.classList.add('hidden');
-            successEl.classList.add('hidden');
-            subStatus.textContent = msg;
+            cmsEl.classList.add('hidden');
+            updateStatus(msg, sub);
         }
 
         function showLogin() {
             loadingEl.classList.add('hidden');
             loginEl.classList.remove('hidden');
             errorEl.classList.add('hidden');
-            successEl.classList.add('hidden');
+            cmsEl.classList.add('hidden');
         }
 
         function showError(msg) {
             loadingEl.classList.add('hidden');
             loginEl.classList.add('hidden');
             errorEl.classList.remove('hidden');
-            successEl.classList.add('hidden');
+            cmsEl.classList.add('hidden');
             errorMessage.textContent = msg;
         }
 
-        function showSuccess() {
+        function showCMS() {
             loadingEl.classList.add('hidden');
             loginEl.classList.add('hidden');
             errorEl.classList.add('hidden');
-            successEl.classList.remove('hidden');
+            cmsEl.classList.remove('hidden');
         }
 
-        // Netlify Identity initialization
+        // ===== LOAD CMS DIRECTLY =====
+        function loadCMSDirectly() {
+            updateStatus('Loading CMS...', 'Fetching from CDN');
+            
+            // Manual init
+            window.CMS_MANUAL_INIT = true;
+
+            // Try primary CDN
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
+            
+            let loaded = false;
+
+            script.onload = function() {
+                if (!loaded) {
+                    loaded = true;
+                    log('✅ Decap CMS loaded from primary CDN');
+                    updateStatus('✅ CMS Loaded!', 'Admin panel ready');
+                    setTimeout(() => {
+                        showCMS();
+                        // Force CMS to initialize
+                        if (typeof window.CMS !== 'undefined') {
+                            log('✅ CMS is ready for use');
+                        } else {
+                            log('⚠️ CMS not available after load');
+                        }
+                    }, 1000);
+                }
+            };
+
+            script.onerror = function() {
+                if (!loaded) {
+                    log('❌ Primary CDN failed, trying fallback...');
+                    loadFallbackCMS();
+                }
+            };
+
+            // Timeout for primary CDN
+            const timeout = setTimeout(() => {
+                if (!loaded) {
+                    log('⏰ Primary CDN timeout, trying fallback...');
+                    loadFallbackCMS();
+                }
+            }, 5000);
+
+            document.head.appendChild(script);
+
+            // Cleanup timeout if loaded
+            script.onload = function() {
+                clearTimeout(timeout);
+                if (!loaded) {
+                    loaded = true;
+                    log('✅ Decap CMS loaded from primary CDN');
+                    updateStatus('✅ CMS Loaded!', 'Admin panel ready');
+                    setTimeout(() => {
+                        showCMS();
+                    }, 1000);
+                }
+            };
+        }
+
+        function loadFallbackCMS() {
+            log('🔄 Loading from fallback CDN...');
+            updateStatus('Loading CMS...', 'Using fallback CDN');
+            
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/decap-cms@^3.0.0/dist/decap-cms.js';
+            
+            fallbackScript.onload = function() {
+                log('✅ Decap CMS loaded from fallback CDN');
+                updateStatus('✅ CMS Loaded!', 'Admin panel ready');
+                setTimeout(() => {
+                    showCMS();
+                }, 1000);
+            };
+
+            fallbackScript.onerror = function() {
+                log('❌ All CDN attempts failed');
+                showError('Failed to load CMS. Please check your internet connection and refresh the page.');
+            };
+
+            document.head.appendChild(fallbackScript);
+        }
+
+        // ===== NETLIFY IDENTITY =====
         function initIdentity() {
+            log('🔑 Initializing Netlify Identity...');
+            
             try {
                 if (typeof netlifyIdentity !== 'undefined') {
                     netlifyIdentity.init({
@@ -148,113 +257,110 @@
                     });
 
                     netlifyIdentity.on('login', function(user) {
-                        console.log('✅ Logged in as:', user.email);
-                        showSuccess();
-                        loadCMS();
+                        log('✅ Logged in as: ' + user.email);
+                        updateStatus('✅ Logged in!', 'Loading CMS...');
+                        // Load CMS after login
+                        setTimeout(() => {
+                            loadCMSDirectly();
+                        }, 500);
                     });
 
                     netlifyIdentity.on('logout', function() {
-                        console.log('👋 Logged out');
+                        log('👋 Logged out');
                         showLogin();
                     });
 
                     netlifyIdentity.on('error', function(err) {
-                        console.error('❌ Netlify Identity error:', err);
-                        // Try to recover by reinitializing
+                        log('❌ Identity error: ' + (err.message || 'Unknown'));
+                        // Try direct CMS load anyway
                         setTimeout(() => {
-                            try {
-                                netlifyIdentity.init({ locale: 'en' });
-                            } catch (e) {
-                                showError('Authentication error: ' + (err.message || 'Unknown error'));
-                            }
+                            loadCMSDirectly();
                         }, 2000);
                     });
 
                     // Check if already logged in
                     const user = netlifyIdentity.currentUser();
                     if (user) {
-                        console.log('✅ Already logged in as:', user.email);
-                        showSuccess();
-                        loadCMS();
+                        log('✅ Already logged in as: ' + user.email);
+                        updateStatus('✅ Logged in!', 'Loading CMS...');
+                        setTimeout(() => {
+                            loadCMSDirectly();
+                        }, 500);
                     } else {
+                        log('👤 Not logged in, showing login button');
                         showLogin();
                     }
                     return true;
                 } else {
-                    console.warn('⚠️ Netlify Identity not loaded');
+                    log('⚠️ Netlify Identity not available');
                     return false;
                 }
             } catch (error) {
-                console.error('❌ Netlify Identity error:', error);
-                showError('Authentication error: ' + error.message);
+                log('❌ Identity error: ' + error.message);
                 return false;
             }
         }
 
-        // Load Decap CMS
-        function loadCMS() {
-            console.log('📦 Loading Decap CMS...');
-            subStatus.textContent = 'Loading CMS...';
-
-            window.CMS_MANUAL_INIT = true;
-
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
-            
-            script.onload = function() {
-                console.log('✅ Decap CMS loaded!');
-                subStatus.textContent = '✅ CMS Ready';
-                showSuccess();
-            };
-            
-            script.onerror = function() {
-                console.error('❌ Failed to load Decap CMS');
-                showError('Failed to load CMS. Please check your internet connection.');
-            };
-
-            document.head.appendChild(script);
-        }
-
-        // Login button handler
+        // ===== LOGIN BUTTON =====
         loginBtn.addEventListener('click', function() {
+            log('🔑 Login button clicked');
             try {
                 if (typeof netlifyIdentity !== 'undefined') {
                     netlifyIdentity.open('login');
                 } else {
+                    log('❌ Netlify Identity not available');
                     showError('Netlify Identity is not available. Please refresh the page.');
                 }
             } catch (error) {
+                log('❌ Login error: ' + error.message);
                 showError('Error opening login: ' + error.message);
             }
         });
 
-        // Start
-        showLoading('Initializing...');
+        // ===== START =====
+        log('🚀 Lakshmi Fashions Admin Panel Starting...');
+        log('📁 Repository: sreelal1155/lakshmi-fashions');
+        log('🌐 URL: ' + window.location.href);
 
-        // Try to initialize Identity
-        let attempts = 0;
-        const maxAttempts = 15;
+        showLoading('Starting...', 'Initializing');
 
-        function tryInitIdentity() {
-            attempts++;
+        // Try Identity
+        let identityAttempts = 0;
+        const maxIdentityAttempts = 20;
+
+        function tryIdentity() {
+            identityAttempts++;
             if (typeof netlifyIdentity !== 'undefined' && netlifyIdentity.init) {
-                console.log('✅ Netlify Identity ready');
-                subStatus.textContent = 'Authenticating...';
+                log('✅ Netlify Identity ready');
                 initIdentity();
-            } else if (attempts < maxAttempts) {
-                subStatus.textContent = 'Waiting for authentication... (' + attempts + '/' + maxAttempts + ')';
-                setTimeout(tryInitIdentity, 500);
+            } else if (identityAttempts < maxIdentityAttempts) {
+                log('⏳ Waiting for Identity... (' + identityAttempts + '/' + maxIdentityAttempts + ')');
+                setTimeout(tryIdentity, 300);
             } else {
-                showError('Netlify Identity failed to load. Please refresh the page.');
+                log('⚠️ Identity not available, loading CMS directly');
+                // If Identity doesn't load, try CMS directly
+                loadCMSDirectly();
             }
         }
 
         // Wait for Identity to load
-        tryInitIdentity();
+        tryIdentity();
 
-        console.log('🔧 Lakshmi Fashions Admin Panel');
-        console.log('📁 Repository:', 'sreelal1155/lakshmi-fashions');
-        console.log('🌐 URL:', window.location.href);
+        // Emergency fallback: After 8 seconds, try CMS directly
+        setTimeout(() => {
+            if (document.getElementById('loading').classList.contains('hidden') === false) {
+                log('⏰ Emergency fallback: Loading CMS directly');
+                loadCMSDirectly();
+            }
+        }, 8000);
+
+        // After 15 seconds, force reload if still loading
+        setTimeout(() => {
+            if (document.getElementById('loading').classList.contains('hidden') === false) {
+                log('⏰ Force reload after 15 seconds');
+                location.reload();
+            }
+        }, 15000);
     </script>
 
 </body>
