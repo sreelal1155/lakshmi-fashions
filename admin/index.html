@@ -18,19 +18,55 @@
             script.src = src;
             script.onload = function() {
                 console.log('✅ CMS loaded from:', src);
-                document.getElementById('loading').textContent = '✅ CMS Loaded. If you don\'t see the interface, check the console (F12) for errors.';
+                document.getElementById('loading').textContent = '✅ CMS Loaded. Initializing...';
+                
+                // --- 3. FORCE CMS INITIALIZATION ---
+                try {
+                    // Check if CMS is available
+                    if (typeof window.CMS !== 'undefined') {
+                        console.log('✅ CMS object found, initializing...');
+                        
+                        // Try to call init if it exists
+                        if (window.CMS.init) {
+                            window.CMS.init();
+                            console.log('✅ CMS.init() called successfully');
+                            document.getElementById('loading').textContent = '✅ CMS Initialized! The admin panel should appear shortly.';
+                        } else {
+                            // If no init method, the CMS might auto-init
+                            console.log('⚠️ CMS.init not found, waiting for auto-init...');
+                            document.getElementById('loading').textContent = '⏳ Waiting for CMS to auto-initialize...';
+                            
+                            // Check again after a moment
+                            setTimeout(() => {
+                                if (document.querySelector('.nc-root') || document.querySelector('.cms-root')) {
+                                    document.getElementById('loading').textContent = '✅ CMS Interface loaded!';
+                                } else {
+                                    document.getElementById('loading').textContent = '⚠️ CMS loaded but interface not showing. Check console (F12).';
+                                }
+                            }, 3000);
+                        }
+                    } else {
+                        console.error('❌ CMS object not found after load!');
+                        document.getElementById('loading').textContent = '❌ CMS object not found. Check console (F12).';
+                    }
+                } catch (error) {
+                    console.error('❌ CMS initialization error:', error);
+                    document.getElementById('loading').textContent = '❌ Error initializing CMS. See console (F12).';
+                }
             };
+            
             script.onerror = function() {
                 console.error('❌ Failed to load from:', src);
                 document.getElementById('loading').textContent = '❌ Failed to load CMS. Please refresh.';
             };
+            
             document.head.appendChild(script);
         }
 
         // Start loading from a reliable CDN
         loadCMS('https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js');
 
-        // --- 3. CHECK FOR config.yml (Most Common Issue) ---
+        // --- 4. CHECK FOR config.yml (Most Common Issue) ---
         fetch('/config.yml')
             .then(response => {
                 if (!response.ok) {
@@ -40,8 +76,6 @@
             })
             .then(text => {
                 console.log('✅ config.yml found and loaded successfully.');
-                // Optional: You could log the first few lines of the file to verify content
-                // console.log('config.yml content preview:', text.substring(0, 100) + '...');
             })
             .catch(error => {
                 console.error('❌ CRITICAL ERROR:', error.message);
@@ -51,6 +85,27 @@
                     <p>Make sure <code>config.yml</code> exists in your project's root directory and has been pushed to GitHub.</p>
                 `;
             });
+
+        // --- 5. EMERGENCY FALLBACK: Try loading CMS from alternative CDN after 5 seconds ---
+        setTimeout(() => {
+            if (!document.querySelector('.nc-root') && !document.querySelector('.cms-root')) {
+                console.log('⏰ Interface not detected, trying fallback CDN...');
+                document.getElementById('loading').textContent = '🔄 Trying alternative CDN...';
+                
+                // Load from jsDelivr CDN
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/decap-cms@^3.0.0/dist/decap-cms.js';
+                fallbackScript.onload = function() {
+                    console.log('✅ CMS loaded from fallback CDN');
+                    document.getElementById('loading').textContent = '✅ CMS loaded from fallback. Initializing...';
+                    // Try to initialize again
+                    if (typeof window.CMS !== 'undefined' && window.CMS.init) {
+                        window.CMS.init();
+                    }
+                };
+                document.head.appendChild(fallbackScript);
+            }
+        }, 5000);
     </script>
 </body>
 </html>
