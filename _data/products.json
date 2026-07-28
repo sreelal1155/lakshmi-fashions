@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Pure Silk Kanjivaram Saree",
+    "price": "₹24,999",
+    "category": "ladies",
+    "badge": "Exclusive",
+    "image": "/images/silk-saree.jpg"
+  },
+  {
+    "name": "Handloom Cotton Saree",
+    "price": "₹2,499",
+    "category": "ladies",
+    "badge": "Sale",
+    "image": "/images/cotton-saree.jpg"
+  },
+  {
+    "name": "Georgette Designer Saree",
+    "price": "₹3,999",
+    "category": "ladies",
+    "badge": "New",
+    "image": "/images/georgette.jpg"
+  },
+  {
+    "name": "Kids Party Wear Dress",
+    "price": "₹1,299",
+    "category": "kids",
+    "badge": "New",
+    "image": "/images/kids-wear.jpg"
+  }
+]

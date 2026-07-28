@@ -1,0 +1,2 @@
+/images/*  /images/:splat  302
+/admin/*   /admin/index.html  200

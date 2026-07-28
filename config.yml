@@ -1,0 +1,27 @@
+backend:
+  name: github
+  repo: sreelal1155/clothing-store
+  branch: master
+
+media_folder: "images"
+public_folder: "/images"
+media_library:
+  name: uploadcare
+  config:
+    publicKey: demopublickey
+    imagesOnly: true
+    maxFileSize: 1048576
+
+collections:
+  - name: "products"
+    label: "Products"
+    folder: "_data"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Name", name: "name", widget: "string" }
+      - { label: "Price", name: "price", widget: "string", required: false }
+      - { label: "Category", name: "category", widget: "select", options: ["ladies", "kids"] }
+      - { label: "Badge", name: "badge", widget: "string", required: false, hint: "e.g. New, Sale, Exclusive" }
+      - { label: "Image", name: "image", widget: "image" }
+      - { label: "Description", name: "description", widget: "text", required: false }
