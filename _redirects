@@ -1,2 +1,6 @@
-/images/*  /images/:splat  302
-/admin/*   /admin/index.html  200
+cd C:\Users\Asus\OneDrive\Desktop\laksmi
+
+# Add Identity redirect
+echo "/.netlify/identity /.netlify/identity 200" > _redirects
+echo "/admin/* /admin/index.html 200" >> _redirects
+echo "/admin /admin/index.html 200" >> _redirects
