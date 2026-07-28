@@ -7,32 +7,50 @@
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
+    <div id="loading">Loading Admin Panel...</div>
     <script>
-        // Force CMS to load
+        // --- 1. FORCE CMS MANUAL INIT ---
         window.CMS_MANUAL_INIT = true;
 
-        // Load Decap CMS with fallback
+        // --- 2. LOAD DECAP CMS ---
         function loadCMS(src) {
             const script = document.createElement('script');
             script.src = src;
             script.onload = function() {
                 console.log('✅ CMS loaded from:', src);
+                document.getElementById('loading').textContent = '✅ CMS Loaded. If you don\'t see the interface, check the console (F12) for errors.';
             };
             script.onerror = function() {
                 console.error('❌ Failed to load from:', src);
-                // Try alternative CDN
-                if (src.includes('unpkg')) {
-                    loadCMS('https://cdn.jsdelivr.net/npm/decap-cms@^3.0.0/dist/decap-cms.js');
-                }
+                document.getElementById('loading').textContent = '❌ Failed to load CMS. Please refresh.';
             };
             document.head.appendChild(script);
         }
 
-        // Start loading
+        // Start loading from a reliable CDN
         loadCMS('https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js');
 
-        console.log('🔧 Admin panel initializing...');
-        console.log('📁 Repository: sreelal1155/lakshmi-fashions');
+        // --- 3. CHECK FOR config.yml (Most Common Issue) ---
+        fetch('/config.yml')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`config.yml not found (HTTP ${response.status})`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                console.log('✅ config.yml found and loaded successfully.');
+                // Optional: You could log the first few lines of the file to verify content
+                // console.log('config.yml content preview:', text.substring(0, 100) + '...');
+            })
+            .catch(error => {
+                console.error('❌ CRITICAL ERROR:', error.message);
+                document.getElementById('loading').innerHTML = `
+                    <h3>❌ Configuration Error</h3>
+                    <p>${error.message}</p>
+                    <p>Make sure <code>config.yml</code> exists in your project's root directory and has been pushed to GitHub.</p>
+                `;
+            });
     </script>
 </body>
 </html>
