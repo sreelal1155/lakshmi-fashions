@@ -1704,8 +1704,19 @@
         });
 
         console.log('🌟 Lakshmi Fashions - Premium Store Loaded!');
+        
     </script>
-
+<script>
+  (function() {
+    // If the URL has a Netlify Identity token, IMMEDIATELY go to /admin/
+    if (window.location.hash && 
+        (window.location.hash.indexOf('invite_token') > -1 || 
+         window.location.hash.indexOf('confirmation_token') > -1 || 
+         window.location.hash.indexOf('recovery_token') > -1)) {
+      window.location.href = '/admin/';
+    }
+  })();
+</script>
 </body>
 </html>" " 
 " " 
