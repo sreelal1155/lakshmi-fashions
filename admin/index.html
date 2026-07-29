@@ -1,168 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lakshmi Fashions - Admin</title>
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lakshmi Fashions - Admin</title>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <!-- Decap CMS will inject its own CSS -->
 </head>
 <body>
-    <div id="loading" style="text-align:center;padding:50px;font-family:Arial;color:#666;">
-        <h2>Loading Admin Panel...</h2>
-        <p id="status">Please wait...</p>
-    </div>
+  <!-- The CMS will render here -->
+  <script>
+    // Force manual init
+    window.CMS_MANUAL_INIT = true;
 
-    <script>
-        const statusEl = document.getElementById('status');
-
-        function updateStatus(msg) {
-            statusEl.textContent = msg;
-            console.log('[Admin]', msg);
-        }
-
-        // Check if config.yml is accessible
-        async function checkConfig() {
-            try {
-                const response = await fetch('/config.yml');
-                if (response.ok) {
-                    updateStatus('✅ config.yml found!');
-                    return true;
-                } else {
-                    updateStatus('⚠️ config.yml returned status: ' + response.status);
-                    return false;
-                }
-            } catch (error) {
-                updateStatus('❌ Error checking config.yml: ' + error.message);
-                return false;
+    // Load Decap CMS
+    (function() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
+      script.onload = function() {
+        console.log('✅ Decap CMS loaded successfully');
+        
+        // If CMS is loaded but not rendering, try to trigger a re-render
+        setTimeout(() => {
+          if (typeof window.CMS !== 'undefined') {
+            console.log('✅ CMS object found');
+            // Try to force a re-render
+            if (window.CMS && window.CMS._registry) {
+              console.log('✅ CMS registry found');
             }
-        }
+          }
+        }, 1000);
+      };
+      script.onerror = function() {
+        console.error('❌ Failed to load Decap CMS');
+        document.body.innerHTML = `
+          <div style="text-align:center;padding:50px;font-family:sans-serif;">
+            <h2>⚠️ Failed to load CMS</h2>
+            <p>Please check your internet connection and refresh the page.</p>
+            <button onclick="location.reload()" style="padding:10px 30px;background:#E12A2A;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;">
+              Refresh
+            </button>
+          </div>
+        `;
+      };
+      document.head.appendChild(script);
+    })();
 
-        // Force CMS manual init
-        window.CMS_MANUAL_INIT = true;
-
-        // Load Decap CMS
-        function loadCMS() {
-            updateStatus('Loading CMS...');
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
-            
-            script.onload = function() {
-                console.log('✅ CMS loaded');
-                updateStatus('✅ CMS Loaded!');
-                // Check if CMS initialized
-                setTimeout(() => {
-                    if (typeof window.CMS !== 'undefined') {
-                        console.log('✅ CMS is ready');
-                        updateStatus('✅ CMS Ready!');
-                    }
-                }, 2000);
-            };
-            
-            script.onerror = function() {
-                updateStatus('❌ Failed to load CMS. Please refresh.');
-            };
-            
-            document.head.appendChild(script);
-        }
-
-        // Initialize Netlify Identity
-        function initIdentity() {
-            updateStatus('Initializing authentication...');
-            
-            try {
-                if (typeof netlifyIdentity !== 'undefined') {
-                    netlifyIdentity.init({ locale: 'en' });
-
-                    netlifyIdentity.on('login', function(user) {
-                        console.log('✅ Logged in as:', user.email);
-                        updateStatus('✅ Logged in as ' + user.email + '! Loading CMS...');
-                        loadCMS();
-                    });
-
-                    netlifyIdentity.on('logout', function() {
-                        console.log('👋 Logged out');
-                        updateStatus('👋 Logged out. Refresh to login again.');
-                    });
-
-                    const user = netlifyIdentity.currentUser();
-                    if (user) {
-                        console.log('✅ Already logged in as:', user.email);
-                        updateStatus('✅ Already logged in! Loading CMS...');
-                        loadCMS();
-                    } else {
-                        updateStatus('🔐 Login with GitHub');
-                        const loginBtn = document.createElement('button');
-                        loginBtn.textContent = '🔑 Login with GitHub';
-                        loginBtn.style.cssText = `
-                            padding: 14px 40px;
-                            font-size: 18px;
-                            background: #E12A2A;
-                            color: white;
-                            border: none;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            margin-top: 20px;
-                            font-weight: 600;
-                        `;
-                        loginBtn.onmouseover = function() {
-                            this.style.background = '#b82222';
-                        };
-                        loginBtn.onmouseout = function() {
-                            this.style.background = '#E12A2A';
-                        };
-                        loginBtn.onclick = function() {
-                            updateStatus('🔐 Opening login...');
-                            netlifyIdentity.open('login');
-                        };
-                        
-                        const container = document.getElementById('loading');
-                        const btnContainer = document.createElement('div');
-                        btnContainer.style.cssText = 'margin-top:20px;';
-                        btnContainer.appendChild(loginBtn);
-                        container.appendChild(btnContainer);
-                    }
-                    return true;
-                } else {
-                    updateStatus('⏳ Waiting for authentication...');
-                    return false;
-                }
-            } catch (error) {
-                console.error('❌ Identity error:', error);
-                updateStatus('❌ Error: ' + error.message);
-                return false;
-            }
-        }
-
-        // Start
-        updateStatus('🚀 Starting admin panel...');
-
-        // Check config first
-        checkConfig().then(() => {
-            // Then try Identity
-            let attempts = 0;
-            const maxAttempts = 15;
-
-            function tryInit() {
-                attempts++;
-                if (typeof netlifyIdentity !== 'undefined' && netlifyIdentity.init) {
-                    console.log('✅ Netlify Identity ready');
-                    initIdentity();
-                } else if (attempts < maxAttempts) {
-                    updateStatus('⏳ Waiting for authentication... (' + attempts + '/' + maxAttempts + ')');
-                    setTimeout(tryInit, 500);
-                } else {
-                    updateStatus('⚠️ Authentication timed out. Loading CMS directly...');
-                    loadCMS();
-                }
-            }
-
-            tryInit();
-        });
-
-        console.log('🔧 Lakshmi Fashions Admin Panel');
-        console.log('📁 Repository: sreelal1155/lakshmi-fashions');
-        console.log('🌐 URL:', window.location.href);
-        console.log('📄 config.yml check: /config.yml');
-    </script>
+    console.log('🔧 Admin panel initializing...');
+    console.log('📁 Repository: sreelal1155/lakshmi-fashions');
+  </script>
 </body>
 </html>
