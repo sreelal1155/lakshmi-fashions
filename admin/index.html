@@ -7,105 +7,162 @@
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
-    <div id="loading">Loading Admin Panel...</div>
+    <div id="loading" style="text-align:center;padding:50px;font-family:Arial;color:#666;">
+        <h2>Loading Admin Panel...</h2>
+        <p id="status">Please wait...</p>
+    </div>
+
     <script>
-        // --- 1. FORCE CMS MANUAL INIT ---
+        const statusEl = document.getElementById('status');
+
+        function updateStatus(msg) {
+            statusEl.textContent = msg;
+            console.log('[Admin]', msg);
+        }
+
+        // Check if config.yml is accessible
+        async function checkConfig() {
+            try {
+                const response = await fetch('/config.yml');
+                if (response.ok) {
+                    updateStatus('✅ config.yml found!');
+                    return true;
+                } else {
+                    updateStatus('⚠️ config.yml returned status: ' + response.status);
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('❌ Error checking config.yml: ' + error.message);
+                return false;
+            }
+        }
+
+        // Force CMS manual init
         window.CMS_MANUAL_INIT = true;
 
-        // --- 2. LOAD DECAP CMS ---
-        function loadCMS(src) {
+        // Load Decap CMS
+        function loadCMS() {
+            updateStatus('Loading CMS...');
             const script = document.createElement('script');
-            script.src = src;
+            script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
+            
             script.onload = function() {
-                console.log('✅ CMS loaded from:', src);
-                document.getElementById('loading').textContent = '✅ CMS Loaded. Initializing...';
-                
-                // --- 3. FORCE CMS INITIALIZATION ---
-                try {
-                    // Check if CMS is available
+                console.log('✅ CMS loaded');
+                updateStatus('✅ CMS Loaded!');
+                // Check if CMS initialized
+                setTimeout(() => {
                     if (typeof window.CMS !== 'undefined') {
-                        console.log('✅ CMS object found, initializing...');
-                        
-                        // Try to call init if it exists
-                        if (window.CMS.init) {
-                            window.CMS.init();
-                            console.log('✅ CMS.init() called successfully');
-                            document.getElementById('loading').textContent = '✅ CMS Initialized! The admin panel should appear shortly.';
-                        } else {
-                            // If no init method, the CMS might auto-init
-                            console.log('⚠️ CMS.init not found, waiting for auto-init...');
-                            document.getElementById('loading').textContent = '⏳ Waiting for CMS to auto-initialize...';
-                            
-                            // Check again after a moment
-                            setTimeout(() => {
-                                if (document.querySelector('.nc-root') || document.querySelector('.cms-root')) {
-                                    document.getElementById('loading').textContent = '✅ CMS Interface loaded!';
-                                } else {
-                                    document.getElementById('loading').textContent = '⚠️ CMS loaded but interface not showing. Check console (F12).';
-                                }
-                            }, 3000);
-                        }
-                    } else {
-                        console.error('❌ CMS object not found after load!');
-                        document.getElementById('loading').textContent = '❌ CMS object not found. Check console (F12).';
+                        console.log('✅ CMS is ready');
+                        updateStatus('✅ CMS Ready!');
                     }
-                } catch (error) {
-                    console.error('❌ CMS initialization error:', error);
-                    document.getElementById('loading').textContent = '❌ Error initializing CMS. See console (F12).';
-                }
+                }, 2000);
             };
             
             script.onerror = function() {
-                console.error('❌ Failed to load from:', src);
-                document.getElementById('loading').textContent = '❌ Failed to load CMS. Please refresh.';
+                updateStatus('❌ Failed to load CMS. Please refresh.');
             };
             
             document.head.appendChild(script);
         }
 
-        // Start loading from a reliable CDN
-        loadCMS('https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js');
+        // Initialize Netlify Identity
+        function initIdentity() {
+            updateStatus('Initializing authentication...');
+            
+            try {
+                if (typeof netlifyIdentity !== 'undefined') {
+                    netlifyIdentity.init({ locale: 'en' });
 
-        // --- 4. CHECK FOR config.yml (Most Common Issue) ---
-        fetch('/config.yml')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`config.yml not found (HTTP ${response.status})`);
-                }
-                return response.text();
-            })
-            .then(text => {
-                console.log('✅ config.yml found and loaded successfully.');
-            })
-            .catch(error => {
-                console.error('❌ CRITICAL ERROR:', error.message);
-                document.getElementById('loading').innerHTML = `
-                    <h3>❌ Configuration Error</h3>
-                    <p>${error.message}</p>
-                    <p>Make sure <code>config.yml</code> exists in your project's root directory and has been pushed to GitHub.</p>
-                `;
-            });
+                    netlifyIdentity.on('login', function(user) {
+                        console.log('✅ Logged in as:', user.email);
+                        updateStatus('✅ Logged in as ' + user.email + '! Loading CMS...');
+                        loadCMS();
+                    });
 
-        // --- 5. EMERGENCY FALLBACK: Try loading CMS from alternative CDN after 5 seconds ---
-        setTimeout(() => {
-            if (!document.querySelector('.nc-root') && !document.querySelector('.cms-root')) {
-                console.log('⏰ Interface not detected, trying fallback CDN...');
-                document.getElementById('loading').textContent = '🔄 Trying alternative CDN...';
-                
-                // Load from jsDelivr CDN
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/decap-cms@^3.0.0/dist/decap-cms.js';
-                fallbackScript.onload = function() {
-                    console.log('✅ CMS loaded from fallback CDN');
-                    document.getElementById('loading').textContent = '✅ CMS loaded from fallback. Initializing...';
-                    // Try to initialize again
-                    if (typeof window.CMS !== 'undefined' && window.CMS.init) {
-                        window.CMS.init();
+                    netlifyIdentity.on('logout', function() {
+                        console.log('👋 Logged out');
+                        updateStatus('👋 Logged out. Refresh to login again.');
+                    });
+
+                    const user = netlifyIdentity.currentUser();
+                    if (user) {
+                        console.log('✅ Already logged in as:', user.email);
+                        updateStatus('✅ Already logged in! Loading CMS...');
+                        loadCMS();
+                    } else {
+                        updateStatus('🔐 Login with GitHub');
+                        const loginBtn = document.createElement('button');
+                        loginBtn.textContent = '🔑 Login with GitHub';
+                        loginBtn.style.cssText = `
+                            padding: 14px 40px;
+                            font-size: 18px;
+                            background: #E12A2A;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            margin-top: 20px;
+                            font-weight: 600;
+                        `;
+                        loginBtn.onmouseover = function() {
+                            this.style.background = '#b82222';
+                        };
+                        loginBtn.onmouseout = function() {
+                            this.style.background = '#E12A2A';
+                        };
+                        loginBtn.onclick = function() {
+                            updateStatus('🔐 Opening login...');
+                            netlifyIdentity.open('login');
+                        };
+                        
+                        const container = document.getElementById('loading');
+                        const btnContainer = document.createElement('div');
+                        btnContainer.style.cssText = 'margin-top:20px;';
+                        btnContainer.appendChild(loginBtn);
+                        container.appendChild(btnContainer);
                     }
-                };
-                document.head.appendChild(fallbackScript);
+                    return true;
+                } else {
+                    updateStatus('⏳ Waiting for authentication...');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Identity error:', error);
+                updateStatus('❌ Error: ' + error.message);
+                return false;
             }
-        }, 5000);
+        }
+
+        // Start
+        updateStatus('🚀 Starting admin panel...');
+
+        // Check config first
+        checkConfig().then(() => {
+            // Then try Identity
+            let attempts = 0;
+            const maxAttempts = 15;
+
+            function tryInit() {
+                attempts++;
+                if (typeof netlifyIdentity !== 'undefined' && netlifyIdentity.init) {
+                    console.log('✅ Netlify Identity ready');
+                    initIdentity();
+                } else if (attempts < maxAttempts) {
+                    updateStatus('⏳ Waiting for authentication... (' + attempts + '/' + maxAttempts + ')');
+                    setTimeout(tryInit, 500);
+                } else {
+                    updateStatus('⚠️ Authentication timed out. Loading CMS directly...');
+                    loadCMS();
+                }
+            }
+
+            tryInit();
+        });
+
+        console.log('🔧 Lakshmi Fashions Admin Panel');
+        console.log('📁 Repository: sreelal1155/lakshmi-fashions');
+        console.log('🌐 URL:', window.location.href);
+        console.log('📄 config.yml check: /config.yml');
     </script>
 </body>
 </html>
