@@ -1,196 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lakshmi Fashions - Admin</title>
-    <!-- Load Netlify Identity Widget -->
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
-        #app { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; width: 90%; text-align: center; }
-        #loading { display: block; }
-        #error { display: none; color: #721c24; background: #fde8e8; padding: 20px; border-radius: 8px; border: 1px solid #f5c6c6; }
-        #error h3 { margin-top: 0; }
-        #error pre { text-align: left; white-space: pre-wrap; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px; max-height: 200px; overflow-y: auto; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #E12A2A; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .btn { display: inline-block; padding: 12px 32px; background: #E12A2A; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 16px; }
-        .btn:hover { background: #b82222; }
-        .hidden { display: none !important; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lakshmi Fashions - Admin</title>
 </head>
 <body>
-    <div id="app">
-        <div id="loading">
-            <div class="spinner"></div>
-            <h2>Loading Admin Panel...</h2>
-            <p id="status">Initializing...</p>
-        </div>
-        <div id="error">
-            <h3>⚠️ CMS Configuration Error</h3>
-            <p>The CMS failed to initialize due to a configuration problem.</p>
-            <div id="errorDetails"></div>
-            <button class="btn" onclick="location.reload()">Refresh Page</button>
-        </div>
-    </div>
-
-    <script>
-        const loadingEl = document.getElementById('loading');
-        const errorEl = document.getElementById('error');
-        const statusEl = document.getElementById('status');
-        const errorDetailsEl = document.getElementById('errorDetails');
-
-        function showStatus(msg) {
-            statusEl.textContent = msg;
-            console.log('[Admin]', msg);
+  <!-- Netlify CMS -->
+  <script>
+    // Tell CMS to load config from the admin folder
+    window.CMS_MANUAL_INIT = true;
+  </script>
+  <script src="https://unpkg.com/netlify-cms@^2.0.0/dist/netlify-cms.js"></script>
+  <script>
+    CMS.init({
+      config: {
+        load: function() {
+          // This path is relative to the site root
+          return fetch('/admin/config.yml').then(res => {
+            if (!res.ok) throw new Error('Config not found');
+            return res.text();
+          });
         }
-
-        function showError(title, details) {
-            loadingEl.style.display = 'none';
-            errorEl.style.display = 'block';
-            errorDetailsEl.innerHTML = `<pre>${details}</pre>`;
-            console.error('[Admin Error]', title, details);
-        }
-
-        // --- 1. CHECK config.yml ---
-        async function checkConfig() {
-            showStatus('Checking config.yml...');
-            try {
-                const response = await fetch('/config.yml');
-                if (!response.ok) {
-                    throw new Error(`config.yml not found (HTTP ${response.status})`);
-                }
-                const text = await response.text();
-                showStatus('✅ config.yml found.');
-                return text;
-            } catch (error) {
-                showError('config.yml Error', 
-                    `Failed to load configuration file.\n\n` +
-                    `Error: ${error.message}\n\n` +
-                    `Make sure a valid config.yml file exists in the root of your project and has been pushed to GitHub.`
-                );
-                throw error;
-            }
-        }
-
-        // --- 2. LOAD CMS WITH ERROR CATCHING ---
-        function loadCMS() {
-            showStatus('Loading Decap CMS...');
-            window.CMS_MANUAL_INIT = true;
-
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js';
-            
-            script.onload = function() {
-                showStatus('✅ CMS Loaded. Initializing...');
-                console.log('✅ Decap CMS script loaded.');
-
-                // Wait a moment for the CMS to initialize
-                setTimeout(() => {
-                    try {
-                        if (typeof window.CMS !== 'undefined' && window.CMS.init) {
-                            showStatus('✅ CMS Initialized Successfully!');
-                            // The CMS should now render
-                        } else if (typeof window.CMS !== 'undefined') {
-                            showStatus('⚠️ CMS loaded, but init method not found.');
-                        } else {
-                            showStatus('❌ CMS not available after load.');
-                            showError('CMS Initialization Failed', 
-                                'The CMS script loaded, but the `window.CMS` object was not created.\n\n' +
-                                'This is a rare error. Try clearing your browser cache and refreshing.'
-                            );
-                        }
-                    } catch (initError) {
-                        showError('CMS Initialization Error', 
-                            `The CMS attempted to initialize but threw an error:\n\n${initError.message}\n\n` +
-                            `Stack Trace:\n${initError.stack}`
-                        );
-                    }
-                }, 3000);
-            };
-
-            script.onerror = function() {
-                showError('CMS Failed to Load', 
-                    'The Decap CMS script could not be loaded from the CDN.\n\n' +
-                    'Please check your internet connection and try refreshing the page.'
-                );
-            };
-
-            document.head.appendChild(script);
-        }
-
-        // --- 3. NETLIFY IDENTITY ---
-        function initIdentity() {
-            showStatus('Initializing authentication...');
-
-            if (typeof netlifyIdentity === 'undefined') {
-                showError('Netlify Identity Failed', 
-                    'The Netlify Identity widget did not load.\n\n' +
-                    'Please check your internet connection and try refreshing the page.'
-                );
-                return;
-            }
-
-            try {
-                netlifyIdentity.init({ locale: 'en' });
-
-                netlifyIdentity.on('login', (user) => {
-                    console.log('✅ Logged in as:', user.email);
-                    showStatus(`✅ Logged in as ${user.email}. Loading CMS...`);
-                    // After login, the CMS will re-initialize, but we can force it.
-                    loadCMS();
-                });
-
-                netlifyIdentity.on('logout', () => {
-                    console.log('👋 Logged out.');
-                    showStatus('👋 Logged out. Refresh to login again.');
-                });
-
-                netlifyIdentity.on('error', (err) => {
-                    showError('Authentication Error', 
-                        `Netlify Identity encountered an error:\n\n${err.message || 'Unknown error'}`
-                    );
-                });
-
-                // Check if user is already logged in
-                const user = netlifyIdentity.currentUser();
-                if (user) {
-                    console.log('✅ Already logged in as:', user.email);
-                    showStatus(`✅ Logged in as ${user.email}. Loading CMS...`);
-                    loadCMS();
-                } else {
-                    showStatus('🔐 Ready to login.');
-                    // Add a manual login button if one doesn't appear
-                    const existingBtn = document.querySelector('.btn-login');
-                    if (!existingBtn) {
-                        const loginBtn = document.createElement('button');
-                        loginBtn.textContent = '🔑 Login with GitHub';
-                        loginBtn.className = 'btn btn-login';
-                        loginBtn.onclick = () => {
-                            showStatus('Opening login...');
-                            netlifyIdentity.open('login');
-                        };
-                        document.getElementById('loading').appendChild(loginBtn);
-                    }
-                }
-            } catch (identityError) {
-                showError('Identity Setup Error', 
-                    `Netlify Identity failed to initialize:\n\n${identityError.message}`
-                );
-            }
-        }
-
-        // --- 4. START ---
-        showStatus('Starting...');
-        checkConfig()
-            .then(() => {
-                // Wait for config check to finish, then start Identity
-                initIdentity();
-            })
-            .catch(() => {
-                // Error is already shown by checkConfig
-            });
-    </script>
+      }
+    });
+  </script>
 </body>
 </html>
